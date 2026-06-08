@@ -17,15 +17,6 @@
   @keyframes pop     { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
   @keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.6} }
   @keyframes shake   { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
-  
-  /* PDF Export Styles */
-  .pdf-container { display: none; }
-  .pdf-container.active { display: block; }
-  @media print {
-    body * { display: none; }
-    .pdf-container { display: block !important; }
-  }
-
 </style>
 </head>
 <body>
@@ -61,119 +52,13 @@ const getUsage   = c=>{ try{return JSON.parse(localStorage.getItem(storageKey(c)
 const saveUsage  = (c,d)=>{ try{localStorage.setItem(storageKey(c),JSON.stringify(d))}catch{} };
 const isExpired  = ()=>new Date()>new Date(BETA_EXPIRY+"T23:59:59");
 
-// ── PDF GENERATION ────────────────────────────────────
 const generateRoutinePDF = (cName, themeId, routineType, tasks) => {
   const T = THEMES.find(t => t.id === themeId) || THEMES[0];
   const rt = ROUTINE_TYPES.find(x => x.id === routineType.id) || {};
-  
-  // Create HTML content for PDF
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; padding: 20px; background: white; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .header { background: ${T.header}; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
-        .header h1 { font-size: 28px; color: ${T.text}; margin: 5px 0; }
-        .header p { font-size: 14px; color: ${T.text}; opacity: 0.8; }
-        .routine-type { font-size: 20px; margin: 10px 0; }
-        .info-box { background: ${T.bg}; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid ${T.accent}; }
-        .info-box h2 { font-size: 14px; color: ${T.text}; margin-bottom: 8px; text-transform: uppercase; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background: ${T.accent}; color: white; padding: 12px; text-align: left; font-weight: bold; }
-        td { padding: 10px 12px; border-bottom: 1px solid #ddd; }
-        tr:nth-child(even) { background: ${T.bg}; }
-        .time { color: #666; font-size: 13px; }
-        .points { color: ${T.accent}; font-weight: bold; }
-        .checkbox { width: 20px; text-align: center; }
-        .challenge { background: ${T.card}; color: ${T.accent}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; }
-        .footer h3 { font-size: 14px; color: ${T.text}; margin-bottom: 10px; }
-        .notes-space { border: 1px dashed #ccc; padding: 15px; margin-bottom: 15px; min-height: 60px; }
-        .score-line { margin-top: 10px; font-size: 14px; }
-        .score-line strong { color: ${T.accent}; }
-        .total { background: ${T.header}; padding: 15px; border-radius: 8px; text-align: center; margin-top: 20px; }
-        .total-text { font-size: 14px; color: ${T.text}; }
-        .total-points { font-size: 24px; font-weight: bold; color: ${T.accent}; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="routine-type">${rt.emoji} ${rt.label}</div>
-          <h1>${cName}'s Routine</h1>
-          <p>Printed on ${new Date().toLocaleDateString()}</p>
-        </div>
-        
-        <div class="info-box">
-          <h2>📋 Instructions</h2>
-          <p>Check off each activity as you complete it. Try to earn all the points!</p>
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 5%;">✓</th>
-              <th style="width: 50%;">Activity</th>
-              <th style="width: 20%;">Time</th>
-              <th style="width: 25%;">Points</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tasks.map(task => {
-              const p = Math.max(5, Math.round(task.m / 3)) + (task.ch ? 5 : 0);
-              return `
-                <tr>
-                  <td class="checkbox">☐</td>
-                  <td>${task.e} <strong>${task.n}</strong></td>
-                  <td class="time">⏱ ${task.m}m</td>
-                  <td class="points">${task.ch ? `<span class="challenge">⭐ ${p}</span>` : `${p}`}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-        
-        <div class="total">
-          <div class="total-text">Total Possible Points</div>
-          <div class="total-points">${tasks.reduce((a, t) => a + (Math.max(5, Math.round(t.m / 3)) + (t.ch ? 5 : 0)), 0)} ⭐</div>
-        </div>
-        
-        <div class="footer">
-          <h3>📝 Parent Notes</h3>
-          <div class="notes-space"></div>
-          
-          <h3>🎯 Today's Score</h3>
-          <div class="score-line">
-            Points earned: <strong>_____ / ${tasks.reduce((a, t) => a + (Math.max(5, Math.round(t.m / 3)) + (t.ch ? 5 : 0)), 0)}</strong>
-          </div>
-          <div class="score-line">
-            Time taken: <strong>_____ minutes</strong>
-          </div>
-          <div class="score-line">
-            Parent signature: <strong>_____________________</strong>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-  
-  // Create PDF
-  const opt = {
-    margin: 10,
-    filename: cName + "_" + rt.label + "_Routine.pdf",
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2 },
-    jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
-  };
-  
+  const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: Arial, sans-serif; padding: 20px; background: white; } .container { max-width: 800px; margin: 0 auto; } .header { background: ${T.header}; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; } .header h1 { font-size: 28px; color: ${T.text}; margin: 5px 0; } .routine-type { font-size: 20px; margin: 10px 0; } table { width: 100%; border-collapse: collapse; margin-bottom: 20px; } th { background: ${T.accent}; color: white; padding: 12px; text-align: left; font-weight: bold; } td { padding: 10px 12px; border-bottom: 1px solid #ddd; } tr:nth-child(even) { background: ${T.bg}; } .points { color: ${T.accent}; font-weight: bold; } .challenge { background: ${T.card}; color: ${T.accent}; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; } .total { background: ${T.header}; padding: 15px; border-radius: 8px; text-align: center; margin-top: 20px; } .total-points { font-size: 24px; font-weight: bold; color: ${T.accent}; } .footer { margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; } .notes-space { border: 1px dashed #ccc; padding: 15px; margin-bottom: 15px; min-height: 60px; }</style></head><body><div class="container"><div class="header"><div class="routine-type">${rt.emoji} ${rt.label}</div><h1>${cName}'s Routine</h1><p>Printed on ${new Date().toLocaleDateString()}</p></div><table><thead><tr><th style="width: 5%;">✓</th><th style="width: 50%;">Activity</th><th style="width: 20%;">Time</th><th style="width: 25%;">Points</th></tr></thead><tbody>${tasks.map(task => { const p = Math.max(5, Math.round(task.m / 3)) + (task.ch ? 5 : 0); return `<tr><td>☐</td><td>${task.e} <strong>${task.n}</strong></td><td>⏱ ${task.m}m</td><td class="points">${task.ch ? '<span class="challenge">⭐ ' + p + '</span>' : p}</td></tr>`; }).join('')}</tbody></table><div class="total"><div>Total Possible Points</div><div class="total-points">${tasks.reduce((a, t) => a + (Math.max(5, Math.round(t.m / 3)) + (t.ch ? 5 : 0)), 0)} ⭐</div></div><div class="footer"><h3>Parent Notes</h3><div class="notes-space"></div><h3>Today's Score</h3><div>Points earned: _____ / ${tasks.reduce((a, t) => a + (Math.max(5, Math.round(t.m / 3)) + (t.ch ? 5 : 0)), 0)}</div></div></div></body></html>`;
+  const opt = { margin: 10, filename: cName + "_" + rt.label + "_Routine.pdf", image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' } };
   html2pdf().set(opt).from(htmlContent).save();
 };
-
 
 // ── THEMES ────────────────────────────────────────────
 const THEMES = [
@@ -305,7 +190,7 @@ function CodeGate({onUnlock}){
 }
 
 // ── SINGLE ROUTINE PANEL (used inside tabbed view) ────
-function RoutinePanel({routine,T}){
+function RoutinePanel({routine,T,cName,themeId,rtType}){
   const tasks=routine.tasks||[];
   const [started,setStarted]=useState(false);
   const [done,setDone]=useState({});
@@ -322,6 +207,14 @@ function RoutinePanel({routine,T}){
 
   return(
     <div style={{paddingBottom:40}}>
+      {/* PDF Download Button */}
+      {cName && themeId && rtType && (
+        <div style={{padding: "10px 16px 0"}}>
+          <button onClick={() => generateRoutinePDF(cName, themeId, rtType, tasks)} style={{width: "100%", padding: "8px 14px", borderRadius: 12, border: `1px solid ${T.card}`, background: "#fff", color: T.text, fontWeight: 700, fontSize: 12, cursor: "pointer", marginBottom: 8}}>
+            📥 Download PDF
+          </button>
+        </div>
+      )}
       {/* Start / Finish buttons */}
       <div style={{textAlign:"center",padding:"18px 0 6px"}}>
         {!started
@@ -427,13 +320,6 @@ function RoutineCard({data}){
   const [activeIdx,setActiveIdx]=useState(0);
   const rt=routines[activeIdx];
 
-  const downloadPDF = () => {
-    if (rt && rt.tasks) {
-      const rtType = ROUTINE_TYPES.find(x => x.id === rt.id) || {};
-      generateRoutinePDF(data.cName, data.themeId, rtType, rt.tasks);
-    }
-  };
-
   return(
     <div style={{minHeight:"100vh",background:T.bg}}>
       {/* Header */}
@@ -461,19 +347,9 @@ function RoutineCard({data}){
             );
           })}
         </div>
-        {/* Download PDF Button */}
-        <div style={{padding:"8px 16px 12px",display:"flex",justifyContent:"center"}}>
-          <button onClick={downloadPDF} style={{
-            background:"rgba(255,255,255,0.3)",border:"none",borderRadius:10,padding:"6px 14px",
-            color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.2s",
-            display:"flex",alignItems:"center",gap:6
-          }}>
-            📥 Download PDF
-          </button>
-        </div>
       </div>
       {/* Active routine panel */}
-      {rt&&<RoutinePanel key={rt.id} routine={rt} T={T}/>}
+      {rt&&<RoutinePanel key={rt.id} routine={rt} T={T} cName={data.cName} themeId={data.themeId} rtType={ROUTINE_TYPES.find(x=>x.id===rt.id)}/>}
       {data.msg&&<div style={{textAlign:"center",padding:"4px 16px 20px",fontSize:13,fontWeight:600,color:T.text,opacity:0.6}}>💗 {data.msg} 💗</div>}
     </div>
   );
@@ -500,6 +376,9 @@ function App(){
   const [srch,   setSrch] =useState("");
   const [link,   setLink] =useState("");
   const [copied, setCopied]=useState(false);
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customForm, setCustomForm] = useState({emoji: "✨", name: "", time: "15"});
 
   useEffect(()=>{
     const h=window.location.hash.slice(1);
@@ -514,7 +393,7 @@ function App(){
   const currentTypeId=selectedTypes[buildIdx];
   const currentType=ROUTINE_TYPES.find(x=>x.id===currentTypeId);
   const isWknd=currentType?.isWknd||false;
-  const filtered=ACTS.filter(a=>(isWknd||cat==="All"||a.c===cat)&&a.n.toLowerCase().includes(srch.toLowerCase()));
+  const filtered=ACTS.filter(a=>{const matchesSearch=a.n.toLowerCase().includes(srch.toLowerCase());const matchesCategory=showAllActivities||cat==="All"||a.c===cat||isWknd;return matchesSearch&&matchesCategory;});
   const isLastRoutine=buildIdx===selectedTypes.length-1;
 
   const handleUnlock=(code,name,count)=>{setAccessCode(code);setTesterName(name);setUsageCount(count);};
@@ -525,6 +404,22 @@ function App(){
     else setSel(p=>[...p,{id:act.id,e:act.e,n:act.n,m:act.m,ch:act.ch}]);
   };
   const updAct=(id,f,v)=>setSel(p=>p.map(s=>s.id===id?{...s,[f]:v}:s));
+  
+  const moveActivity=(fromIdx,toIdx)=>{
+    if(toIdx<0||toIdx>=sel.length) return;
+    const newSel=[...sel];
+    [newSel[fromIdx],newSel[toIdx]]=[newSel[toIdx],newSel[fromIdx]];
+    setSel(newSel);
+  };
+  
+  const addCustomActivity=()=>{
+    if(!customForm.name.trim()) return;
+    const m=Math.max(1,parseInt(customForm.time)||5);
+    const newId=Math.max(...sel.map(s=>s.id),0)+1;
+    setSel(p=>[...p,{id:newId,e:customForm.emoji,n:customForm.name,m,ch:false}]);
+    setShowCustomModal(false);
+    setCustomForm({emoji:"✨",name:"",time:"15"});
+  };
 
   const saveCurrentAndAdvance=()=>{
     const newRoutine={id:currentTypeId,rName:currentType.rName,tasks:sel};
@@ -674,14 +569,47 @@ function App(){
         <input value={srch} onChange={e=>setSrch(e.target.value)} placeholder="🔍 Search..."
           style={{width:"100%",padding:"8px 14px",borderRadius:12,border:"none",fontSize:14,outline:"none",background:"rgba(255,255,255,0.9)",marginBottom:8}}/>
         {!isWknd
-          ?<div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
+          ?<div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2,marginBottom:8}}>
              {CATS.map(c=><button key={c} onClick={()=>setCat(c)} style={{padding:"4px 12px",borderRadius:20,border:"none",background:cat===c?"#fff":"rgba(255,255,255,0.25)",color:cat===c?T.accent:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{c}</button>)}
            </div>
-          :<div style={{background:"rgba(255,255,255,0.2)",borderRadius:10,padding:"5px 12px",fontSize:12,color:"#fff",fontWeight:700}}>🎉 Weekend — all activities shown</div>
+          :<div style={{background:"rgba(255,255,255,0.2)",borderRadius:10,padding:"5px 12px",fontSize:12,color:"#fff",fontWeight:700,marginBottom:8}}>🎉 Weekend — all activities shown</div>
         }
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setShowAllActivities(!showAllActivities)} style={{flex:1,padding:"6px 12px",borderRadius:10,border:"none",background:showAllActivities?"#fff":"rgba(255,255,255,0.3)",color:showAllActivities?T.accent:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",transition:"all 0.2s"}}>
+            {showAllActivities?"📋 All":"📋 Suggested"}
+          </button>
+          <button onClick={()=>setShowCustomModal(true)} style={{flex:1,padding:"6px 12px",borderRadius:10,border:"none",background:"rgba(255,255,255,0.3)",color:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",transition:"all 0.2s"}}>
+            ➕ Custom
+          </button>
+        </div>
       </div>
 
       <div style={{padding:"12px 14px 0"}}>
+        {sel.length > 0 && (
+          <div style={{marginBottom: 16}}>
+            <div style={{fontSize: 13, fontWeight: 800, color: T.accent, marginBottom: 10}}>
+              📋 Your Activities ({sel.length})
+            </div>
+            {sel.map((act, idx) => {
+              const p = pts(act.m, act.ch);
+              return (
+                <div key={act.id} style={{background: "#fff", borderRadius: 12, padding: "10px 12px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.04)"}}>
+                  <div style={{fontSize: 18}}>{act.e}</div>
+                  <div style={{flex: 1, minWidth: 0}}>
+                    <div style={{fontWeight: 700, fontSize: 13, color: "#1E1A3C"}}>{act.n}</div>
+                    <div style={{fontSize: 11, color: "#999", marginTop: 2}}>{act.m}m • +{p} pts</div>
+                  </div>
+                  <div style={{display: "flex", gap: 4, flexShrink: 0}}>
+                    <button onClick={() => moveActivity(idx, idx - 1)} disabled={idx === 0} style={{width: 28, height: 28, borderRadius: 8, border: `1px solid ${idx === 0 ? "#e0e0e0" : T.card}`, background: "#fff", cursor: idx === 0 ? "default" : "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", opacity: idx === 0 ? 0.5 : 1, transition: "all 0.2s"}}>↑</button>
+                    <button onClick={() => moveActivity(idx, idx + 1)} disabled={idx === sel.length - 1} style={{width: 28, height: 28, borderRadius: 8, border: `1px solid ${idx === sel.length - 1 ? "#e0e0e0" : T.card}`, background: "#fff", cursor: idx === sel.length - 1 ? "default" : "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", opacity: idx === sel.length - 1 ? 0.5 : 1, transition: "all 0.2s"}}>↓</button>
+                    <button onClick={() => setSel(p => p.filter((_, i) => i !== idx))} style={{width: 28, height: 28, borderRadius: 8, border: `1px solid #e0e0e0`, background: "#fff", color: "#999", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s"}}>✕</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {filtered.map(act=>{
           const s=sel.find(x=>x.id===act.id),m=s?.m??act.m,isCh=s?.ch??act.ch,p=pts(m,isCh);
           return(
@@ -723,6 +651,40 @@ function App(){
           </button>
         </div>
       )}
+
+      {showCustomModal && (
+        <div style={{position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 1000}} onClick={() => setShowCustomModal(false)}>
+          <div style={{width: "100%", background: "#fff", borderRadius: "16px 16px 0 0", padding: "20px 18px 30px", boxShadow: "0 -4px 20px rgba(0,0,0,0.1)"}} onClick={e => e.stopPropagation()}>
+            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16}}>
+              <div style={{fontSize: 16, fontWeight: 800, color: "#1E1A3C"}}>➕ Custom Activity</div>
+              <button onClick={() => setShowCustomModal(false)} style={{background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#999"}}>✕</button>
+            </div>
+
+            <div style={{marginBottom: 16}}>
+              <label style={{fontSize: 12, fontWeight: 700, color: T.accent, display: "block", marginBottom: 8}}>Activity Icon (paste emoji)</label>
+              <input value={customForm.emoji} onChange={e => setCustomForm({...customForm, emoji: e.target.value.slice(-2)})} placeholder="✨" maxLength="2" style={{width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.card}`, fontSize: 16, outline: "none", textAlign: "center"}} />
+            </div>
+
+            <div style={{marginBottom: 16}}>
+              <label style={{fontSize: 12, fontWeight: 700, color: T.accent, display: "block", marginBottom: 8}}>Activity Name</label>
+              <input value={customForm.name} onChange={e => setCustomForm({...customForm, name: e.target.value})} placeholder="e.g., Brush teeth, Read a book..." style={{width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.card}`, fontSize: 14, outline: "none"}} />
+            </div>
+
+            <div style={{marginBottom: 20}}>
+              <label style={{fontSize: 12, fontWeight: 700, color: T.accent, display: "block", marginBottom: 8}}>Duration (minutes)</label>
+              <div style={{display: "flex", alignItems: "center", gap: 10}}>
+                <button onClick={() => setCustomForm({...customForm, time: Math.max(1, (parseInt(customForm.time) || 15) - 5).toString()})} style={{width: 40, height: 40, borderRadius: "50%", border: `1px solid ${T.card}`, background: "#fff", cursor: "pointer", fontWeight: 800, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center"}}>−</button>
+                <input value={customForm.time} onChange={e => setCustomForm({...customForm, time: e.target.value})} type="number" min="1" style={{flex: 1, padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.card}`, fontSize: 16, outline: "none", textAlign: "center", fontWeight: 700}} />
+                <button onClick={() => setCustomForm({...customForm, time: ((parseInt(customForm.time) || 15) + 5).toString()})} style={{width: 40, height: 40, borderRadius: "50%", border: `1px solid ${T.card}`, background: "#fff", cursor: "pointer", fontWeight: 800, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center"}}>+</button>
+              </div>
+            </div>
+
+            <button onClick={addCustomActivity} style={{width: "100%", background: `linear-gradient(135deg,${T.accent},${T.accent}bb)`, color: "#fff", border: "none", borderRadius: 12, padding: "12px 18px", fontWeight: 800, fontSize: 14, cursor: "pointer", transition: "all 0.2s"}}>
+              Add Activity
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -751,15 +713,15 @@ function App(){
           <button onClick={copyLink} style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:copied?"linear-gradient(135deg,#2ECC87,#27AE60)":`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",transition:"background 0.3s"}}>
             {copied?"✓ Copied!":"📋 Copy link"}
           </button>
+          <button onClick={()=>{ builtRoutines.forEach(r=>{ const rt=ROUTINE_TYPES.find(x=>x.id===r.id)||{label:"Routine"}; generateRoutinePDF(cName,themeId,rt,r.tasks); setTimeout(()=>{},100); }); }} style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",transition:"background 0.3s"}}>
+            📥 Download PDFs
+          </button>
         </div>
 
         <div style={{display:"flex",gap:10,marginBottom:10}}>
           <button onClick={()=>{ setBuildIdx(selectedTypes.length-1); const prev=builtRoutines[builtRoutines.length-1]; setSel(prev.tasks); setBuiltRoutines(p=>p.slice(0,-1)); setView("pick"); }} style={{flex:1,padding:"12px",borderRadius:50,border:`1.5px solid ${T.card}`,background:"#fff",color:T.text,fontSize:13,fontWeight:700,cursor:"pointer"}}>← Edit last</button>
-          <button onClick={()=>{ const d=dec(window.location.hash.slice(1)); if(d) setSharedData(d); }} style={{flex:1,padding:"12px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Preview →</button>
+          <button onClick={()=>{ const d=dec(window.location.hash.slice(1)); if(d) setSharedData(d); }} style={{flex:2,padding:"12px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Preview →</button>
         </div>
-        <button onClick={()=>{ builtRoutines.forEach(r => { const rtType = ROUTINE_TYPES.find(x => x.id === r.id) || {}; generateRoutinePDF(cName, themeId, rtType, r.tasks); }); }} style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",marginBottom:10,boxShadow:`0 4px 16px ${T.accent}55`}}>
-          📥 Download Routine PDFs
-        </button>
         {usesLeft>0&&<button onClick={startOver} style={{width:"100%",padding:"11px",borderRadius:50,border:"none",background:"transparent",color:"#8A86AA",fontSize:13,cursor:"pointer"}}>+ Build another routine</button>}
       </div>
     </div>
