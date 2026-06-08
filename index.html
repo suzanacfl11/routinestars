@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RoutineStars ⭐</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; }
+  button, input { font-family: 'Nunito', sans-serif; }
+  @keyframes bounce  { from{transform:translateY(0)} to{transform:translateY(-14px)} }
+  @keyframes pop     { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+  @keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  @keyframes shake   { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useEffect } = React;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ✏️  BETA SETTINGS — edit to manage testers
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const MAX_USES    = 5;
+const BETA_EXPIRY = "2025-08-31";
+const CODES = {
+  "BETA01":"Vivian","BETA02":"Debora","BETA03":"Sarah",
+  "BETA04":"Clarissa","BETA05":"Marla","BETA06":"Suzana",
+  "BETA07":"Juliana","BETA08":"Tester08","BETA09":"Tester09","BETA10":"Tester10",
+};
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const enc = d=>{ try{return btoa(unescape(encodeURIComponent(JSON.stringify(d))))}catch{return""} };
+const dec = s=>{ try{return JSON.parse(decodeURIComponent(escape(atob(s))))}catch{return null} };
+
+const storageKey = c=>`rs_${c.toUpperCase()}`;
+const getUsage   = c=>{ try{return JSON.parse(localStorage.getItem(storageKey(c)))||{count:0}}catch{return{count:0}} };
+const saveUsage  = (c,d)=>{ try{localStorage.setItem(storageKey(c),JSON.stringify(d))}catch{} };
+const isExpired  = ()=>new Date()>new Date(BETA_EXPIRY+"T23:59:59");
+
+// ── THEMES ────────────────────────────────────────────
+const THEMES = [
+  {id:"pink",  label:"🩷 Pink",  bg:"#FFF0F5",card:"#FFE4EF",accent:"#FF6B9D",header:"#FFD6E8",text:"#8B2252"},
+  {id:"purple",label:"💜 Purple",bg:"#F3F0FF",card:"#E8E2FF",accent:"#7C6FFF",header:"#D4CEFF",text:"#3D2B8E"},
+  {id:"blue",  label:"💙 Blue",  bg:"#F0F6FF",card:"#DCE8FF",accent:"#4A7BFF",header:"#C2D8FF",text:"#1A3A8E"},
+  {id:"green", label:"💚 Green", bg:"#F0FFF6",card:"#CFFAE4",accent:"#2ECC87",header:"#B0F0D4",text:"#0D6B44"},
+  {id:"yellow",label:"🌟 Yellow",bg:"#FFFBF0",card:"#FFF3CC",accent:"#F5A623",header:"#FFE9A0",text:"#7A5000"},
+];
+
+// ── ROUTINE TYPES ──────────────────────────────────────
+const ROUTINE_TYPES = [
+  {id:"morning",    label:"Morning",    emoji:"☀️", rName:"Morning Routine",   isWknd:false},
+  {id:"afterschool",label:"After School",emoji:"🎒",rName:"After School",      isWknd:false},
+  {id:"evening",    label:"Evening",    emoji:"🌙", rName:"Evening Routine",   isWknd:false},
+  {id:"bedtime",    label:"Bedtime",    emoji:"😴", rName:"Bedtime Routine",   isWknd:false},
+  {id:"weekend",    label:"Weekend",    emoji:"🎉", rName:"Weekend Routine",   isWknd:true },
+];
+
+// ── 50 ACTIVITIES ──────────────────────────────────────
+const ACTS = [
+  {id:1, e:"🌅",n:"Wake up & stretch",          m:5,  c:"Morning",   ch:false},
+  {id:2, e:"🛏️",n:"Make the bed",               m:5,  c:"Morning",   ch:false},
+  {id:3, e:"🪥",n:"Brush teeth",                m:3,  c:"Morning",   ch:false},
+  {id:4, e:"💧",n:"Wash face",                  m:3,  c:"Morning",   ch:false},
+  {id:5, e:"🚿",n:"Shower / bath",              m:15, c:"Morning",   ch:true },
+  {id:6, e:"👕",n:"Get dressed",                m:10, c:"Morning",   ch:true },
+  {id:7, e:"💇",n:"Comb / brush hair",          m:5,  c:"Morning",   ch:false},
+  {id:8, e:"🥣",n:"Eat breakfast",              m:15, c:"Morning",   ch:false},
+  {id:9, e:"💊",n:"Take vitamins",              m:2,  c:"Morning",   ch:false},
+  {id:10,e:"💧",n:"Drink a glass of water",     m:2,  c:"Morning",   ch:false},
+  {id:11,e:"🎒",n:"Pack school bag",            m:10, c:"Morning",   ch:true },
+  {id:12,e:"👟",n:"Put on shoes",               m:3,  c:"Morning",   ch:false},
+  {id:13,e:"✅",n:"Check the schedule",         m:3,  c:"Morning",   ch:false},
+  {id:14,e:"🐾",n:"Feed the pet",               m:5,  c:"Morning",   ch:false},
+  {id:15,e:"🛏️",n:"Tidy bedroom",               m:10, c:"Morning",   ch:true },
+  {id:16,e:"🍎",n:"Snack time",                 m:10, c:"Afternoon", ch:false},
+  {id:17,e:"📝",n:"Homework",                   m:30, c:"Afternoon", ch:true },
+  {id:18,e:"📖",n:"Reading (15 min)",           m:15, c:"Afternoon", ch:false},
+  {id:19,e:"🔤",n:"Practice spelling words",    m:10, c:"Afternoon", ch:true },
+  {id:20,e:"🔢",n:"Math practice",              m:15, c:"Afternoon", ch:true },
+  {id:21,e:"🌳",n:"Play outside",               m:30, c:"Afternoon", ch:false},
+  {id:22,e:"🏃",n:"Movement break",             m:10, c:"Afternoon", ch:false},
+  {id:23,e:"📺",n:"Screen time",                m:30, c:"Afternoon", ch:false},
+  {id:24,e:"🎨",n:"Drawing / art",              m:20, c:"Afternoon", ch:false},
+  {id:25,e:"🧱",n:"LEGO / building",            m:20, c:"Afternoon", ch:false},
+  {id:26,e:"🎵",n:"Music practice",             m:20, c:"Afternoon", ch:true },
+  {id:27,e:"💃",n:"Dance break",                m:10, c:"Afternoon", ch:false},
+  {id:28,e:"🚲",n:"Bike / scooter ride",        m:20, c:"Afternoon", ch:false},
+  {id:29,e:"🧹",n:"Help with chores",           m:10, c:"Afternoon", ch:true },
+  {id:30,e:"🧸",n:"Tidy play area",             m:10, c:"Afternoon", ch:false},
+  {id:31,e:"🍽️",n:"Dinner with family",         m:20, c:"Evening",   ch:false},
+  {id:32,e:"🥄",n:"Help set the table",         m:5,  c:"Evening",   ch:false},
+  {id:33,e:"🍳",n:"Help clear the table",       m:5,  c:"Evening",   ch:false},
+  {id:34,e:"🛁",n:"Bath / shower (evening)",    m:15, c:"Evening",   ch:true },
+  {id:35,e:"🧴",n:"Wash hair",                  m:10, c:"Evening",   ch:true },
+  {id:36,e:"🩳",n:"Put on pyjamas",             m:5,  c:"Evening",   ch:false},
+  {id:37,e:"🦷",n:"Brush teeth (evening)",      m:3,  c:"Evening",   ch:false},
+  {id:38,e:"🧵",n:"Floss teeth",               m:2,  c:"Evening",   ch:true },
+  {id:39,e:"🎒",n:"Pack bag for tomorrow",      m:5,  c:"Evening",   ch:false},
+  {id:40,e:"👗",n:"Lay out tomorrow's clothes", m:5,  c:"Evening",   ch:false},
+  {id:41,e:"📚",n:"Quiet reading time",         m:15, c:"Evening",   ch:false},
+  {id:42,e:"📕",n:"Bedtime story",              m:15, c:"Evening",   ch:false},
+  {id:43,e:"🧘",n:"Breathing / calm time",      m:5,  c:"Evening",   ch:false},
+  {id:44,e:"🙏",n:"Gratitude moment",           m:3,  c:"Evening",   ch:false},
+  {id:45,e:"😴",n:"Lights out",                m:1,  c:"Evening",   ch:false},
+  {id:46,e:"🌈",n:"Sensory break",              m:10, c:"Any time",  ch:false},
+  {id:47,e:"🤗",n:"Family hug time",            m:5,  c:"Any time",  ch:false},
+  {id:48,e:"🧩",n:"Puzzle or brain game",       m:15, c:"Any time",  ch:false},
+  {id:49,e:"💌",n:"Write / draw in journal",    m:10, c:"Any time",  ch:false},
+  {id:50,e:"🌱",n:"Water the plants",           m:5,  c:"Any time",  ch:false},
+];
+
+const CATS = ["All","Morning","Afternoon","Evening","Any time"];
+const pts  = (m,ch)=>{ const b=m<=3?5:m<=7?10:m<=12?15:m<=20?20:m<=30?25:30; return ch?b+5:b; };
+
+// ── STAR LOGO ─────────────────────────────────────────
+function StarLogo({size=44,accent="#FF6B9D"}){
+  return(
+    <div style={{width:size,height:size,borderRadius:size*0.28,background:`linear-gradient(135deg,${accent},${accent}bb)`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 14px ${accent}66`,flexShrink:0,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 30% 25%,rgba(255,255,255,0.3),transparent 60%)"}}/>
+      <span style={{fontSize:size*0.52,lineHeight:1,position:"relative",zIndex:1}}>🌟</span>
+    </div>
+  );
+}
+
+// ── CODE GATE ─────────────────────────────────────────
+function CodeGate({onUnlock}){
+  const [input,setInput]=useState("");
+  const [error,setError]=useState("");
+  const [shake,setShake]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const doShake=()=>{setShake(true);setTimeout(()=>setShake(false),600);};
+  const submit=()=>{
+    const code=input.trim().toUpperCase();
+    if(!code)return;
+    setLoading(true);
+    setTimeout(()=>{
+      setLoading(false);
+      if(isExpired()){setError("The beta period has ended. Stay tuned for the full launch!");doShake();return;}
+      if(!CODES[code]){setError("That code doesn't look right. Check the message we sent you.");doShake();setInput("");return;}
+      const usage=getUsage(code);
+      if(usage.count>=MAX_USES){setError(`You've used all ${MAX_USES} beta builds, ${CODES[code]}! Full version coming soon 🌟`);doShake();return;}
+      onUnlock(code,CODES[code],usage.count);
+    },400);
+  };
+  return(
+    <div style={{minHeight:"100vh",background:"#FFFBF0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32}}>
+      <div style={{width:"100%",maxWidth:360,textAlign:"center"}}>
+        <div style={{display:"flex",justifyContent:"center",marginBottom:16}}><StarLogo size={68} accent="#F5A623"/></div>
+        <h1 style={{fontSize:28,fontWeight:900,color:"#1E1A3C",margin:"0 0 6px",letterSpacing:-0.5}}>RoutineStars</h1>
+        <p style={{color:"#8A86AA",fontSize:15,margin:"0 0 32px",lineHeight:1.6}}>Build gamified daily routines your child will actually follow ⭐</p>
+        <div style={{background:"#fff",borderRadius:24,padding:28,boxShadow:"0 8px 32px rgba(245,166,35,0.15)",animation:shake?"shake 0.5s ease":"none"}}>
+          <div style={{fontSize:32,marginBottom:12}}>🌟</div>
+          <h2 style={{fontSize:18,fontWeight:900,color:"#1E1A3C",margin:"0 0 6px"}}>Welcome!</h2>
+          <p style={{color:"#8A86AA",fontSize:13,margin:"0 0 20px",lineHeight:1.5}}>Enter the access code from your invitation to get started.</p>
+          <input value={input} onChange={e=>{setInput(e.target.value.toUpperCase());setError("");}} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="e.g. BETA01" maxLength={10}
+            style={{width:"100%",padding:"14px 16px",borderRadius:14,border:`2px solid ${error?"#F5A623":"#FFE9A0"}`,fontSize:18,fontWeight:800,textAlign:"center",letterSpacing:3,outline:"none",background:"#FFFBF0",color:"#1E1A3C",marginBottom:error?8:16}}/>
+          {error&&<div style={{background:"#FFFBF0",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#B07800",fontWeight:700,lineHeight:1.5,textAlign:"left"}}>⚠️ {error}</div>}
+          <button onClick={submit} disabled={!input.trim()||loading}
+            style={{width:"100%",padding:"15px",borderRadius:50,border:"none",background:input.trim()?`linear-gradient(135deg,#F5A623,#FFD166)`:"#eee",color:input.trim()?"#fff":"#aaa",fontSize:16,fontWeight:800,cursor:input.trim()?"pointer":"default",boxShadow:input.trim()?"0 6px 20px rgba(245,166,35,0.4)":"none"}}>
+            {loading?"Checking...":"Enter →"}
+          </button>
+        </div>
+        <p style={{color:"#C8B880",fontSize:12,marginTop:20,lineHeight:1.6}}>Don't have a code? Full launch coming soon.</p>
+      </div>
+    </div>
+  );
+}
+
+// ── SINGLE ROUTINE PANEL (used inside tabbed view) ────
+function RoutinePanel({routine,T}){
+  const tasks=routine.tasks||[];
+  const [started,setStarted]=useState(false);
+  const [done,setDone]=useState({});
+  const [result,setResult]=useState(null);
+
+  const total =tasks.reduce((a,t)=>a+pts(t.m,t.ch),0);
+  const earned=tasks.filter(t=>done[t.id]).reduce((a,t)=>a+pts(t.m,t.ch),0);
+  const doneN =tasks.filter(t=>done[t.id]).length;
+  const pct   =tasks.length?Math.round(doneN/tasks.length*100):0;
+
+  const tap   =id=>{if(!started||result)return;setDone(p=>({...p,[id]:!p[id]}));};
+  const finish=()=>setResult(doneN===tasks.length?"full":"partial");
+  const reset =()=>{setDone({});setStarted(false);setResult(null);};
+
+  return(
+    <div style={{paddingBottom:40}}>
+      {/* Start / Finish buttons */}
+      <div style={{textAlign:"center",padding:"18px 0 6px"}}>
+        {!started
+          ?<button onClick={()=>setStarted(true)} style={{background:`linear-gradient(135deg,${T.accent},${T.accent}cc)`,color:"#fff",border:"none",borderRadius:50,padding:"12px 32px",fontSize:15,fontWeight:900,cursor:"pointer",boxShadow:`0 6px 18px ${T.accent}55`,letterSpacing:1}}>✨ LET'S START!</button>
+          :!result
+            ?<div style={{display:"flex",gap:10,justifyContent:"center"}}>
+               <button onClick={reset} style={{background:"rgba(0,0,0,0.06)",border:"none",borderRadius:50,padding:"9px 18px",fontSize:13,fontWeight:700,color:T.text,cursor:"pointer"}}>↺ Restart</button>
+               <button onClick={finish} style={{background:`linear-gradient(135deg,${T.accent},${T.accent}cc)`,color:"#fff",border:"none",borderRadius:50,padding:"9px 22px",fontSize:13,fontWeight:900,cursor:"pointer",boxShadow:`0 4px 14px ${T.accent}44`}}>🏁 Finish</button>
+             </div>
+            :<button onClick={reset} style={{background:"rgba(0,0,0,0.06)",border:"none",borderRadius:50,padding:"9px 22px",fontSize:13,fontWeight:700,color:T.text,cursor:"pointer"}}>↺ Start over</button>
+        }
+      </div>
+
+      <div style={{padding:"10px 16px 0"}}>
+        {/* Stats */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          {[["⭐ Points",earned],["📋 Tasks",`${doneN}/${tasks.length}`]].map(([l,v])=>(
+            <div key={l} style={{background:"#fff",borderRadius:16,padding:"12px",textAlign:"center",boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#8A86AA",textTransform:"uppercase",letterSpacing:0.5,marginBottom:3}}>{l}</div>
+              <div style={{fontSize:26,fontWeight:900,color:T.accent}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          {[["🏆 Total",total],["🎯 Left",total-earned]].map(([l,v])=>(
+            <div key={l} style={{background:"#fff",borderRadius:16,padding:"12px",textAlign:"center",boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#8A86AA",textTransform:"uppercase",letterSpacing:0.5,marginBottom:3}}>{l}</div>
+              <div style={{fontSize:26,fontWeight:900,color:T.accent}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Progress */}
+        <div style={{background:"#fff",borderRadius:14,padding:"10px 14px",marginBottom:14,boxShadow:"0 2px 10px rgba(0,0,0,0.05)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,fontWeight:700,color:T.text,marginBottom:6}}>
+            <span>Progress</span><span style={{color:T.accent}}>{pct}%</span>
+          </div>
+          <div style={{height:10,background:T.card,borderRadius:10,overflow:"hidden"}}>
+            <div style={{height:10,borderRadius:10,background:`linear-gradient(90deg,${T.accent},${T.accent}bb)`,width:`${pct}%`,transition:"width 0.5s ease"}}/>
+          </div>
+        </div>
+        {/* Tasks */}
+        {tasks.map(task=>{
+          const isDone=!!done[task.id],p=pts(task.m,task.ch);
+          return(
+            <div key={task.id} onClick={()=>tap(task.id)} style={{background:"#fff",borderRadius:18,padding:"14px",marginBottom:10,boxShadow:isDone?"none":"0 3px 12px rgba(0,0,0,0.06)",border:`2px solid ${isDone?T.accent+"70":"transparent"}`,opacity:isDone?0.55:1,cursor:started&&!result?"pointer":"default",display:"flex",alignItems:"center",gap:12,transition:"all 0.2s"}}>
+              <div style={{width:44,height:44,borderRadius:13,background:isDone?T.accent:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,transition:"all 0.2s"}}>{isDone?"✓":task.e}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:15,color:"#1E1A3C",textDecoration:isDone?"line-through":"none"}}>{task.n}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:3}}>
+                  <span style={{fontSize:12,color:"#8A86AA"}}>⏱ {task.m}min</span>
+                  {task.ch&&<span style={{fontSize:10,fontWeight:800,color:T.accent,background:T.card,borderRadius:8,padding:"2px 8px"}}>⭐ CHALLENGE</span>}
+                </div>
+              </div>
+              <div style={{background:isDone?T.accent:T.card,color:isDone?"#fff":T.accent,borderRadius:20,padding:"5px 12px",fontWeight:900,fontSize:14,flexShrink:0,transition:"all 0.2s"}}>+{p}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Full completion */}
+      {result==="full"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:32}}>
+          <div style={{fontSize:72,marginBottom:16,animation:"bounce 0.6s ease infinite alternate"}}>🎉</div>
+          <div style={{background:"#fff",borderRadius:28,padding:"28px 24px",maxWidth:300,boxShadow:"0 20px 60px rgba(0,0,0,0.3)",animation:"pop 0.3s ease"}}>
+            <h2 style={{margin:"0 0 6px",fontSize:24,fontWeight:900,color:T.accent}}>AMAZING!</h2>
+            <p style={{color:"#8A86AA",fontSize:14,lineHeight:1.6,margin:"0 0 14px"}}>Every task done! 🌟</p>
+            <div style={{background:T.bg,borderRadius:16,padding:"14px",marginBottom:6}}>
+              <div style={{fontSize:44,fontWeight:900,color:T.accent}}>{total}</div>
+              <div style={{fontWeight:700,color:T.text,fontSize:14}}>⭐ points earned!</div>
+            </div>
+            <div style={{fontSize:12,color:"#8A86AA",marginBottom:18}}>Full routine complete ✅</div>
+            <button onClick={reset} style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}cc)`,color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer"}}>Do it again! 🔁</button>
+          </div>
+        </div>
+      )}
+      {/* Partial completion */}
+      {result==="partial"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:32}}>
+          <div style={{fontSize:64,marginBottom:16,animation:"shimmer 1.5s ease infinite"}}>🌟</div>
+          <div style={{background:"#fff",borderRadius:28,padding:"28px 24px",maxWidth:300,boxShadow:"0 20px 60px rgba(0,0,0,0.3)",animation:"pop 0.3s ease"}}>
+            <h2 style={{margin:"0 0 6px",fontSize:22,fontWeight:900,color:T.accent}}>Good effort!</h2>
+            <p style={{color:"#8A86AA",fontSize:14,lineHeight:1.6,margin:"0 0 14px"}}><strong style={{color:T.accent}}>{doneN} of {tasks.length}</strong> tasks completed today.</p>
+            <div style={{background:T.bg,borderRadius:16,padding:"14px",marginBottom:6}}>
+              <div style={{fontSize:40,fontWeight:900,color:T.accent}}>{earned}</div>
+              <div style={{fontWeight:700,color:T.text,fontSize:13}}>⭐ out of {total} points</div>
+            </div>
+            <div style={{height:7,background:T.card,borderRadius:7,margin:"10px 0 14px",overflow:"hidden"}}>
+              <div style={{height:7,borderRadius:7,background:`linear-gradient(90deg,${T.accent},${T.accent}bb)`,width:`${pct}%`}}/>
+            </div>
+            <p style={{color:"#8A86AA",fontSize:12,margin:"0 0 16px"}}>You can earn all {total} points tomorrow! 💪</p>
+            <button onClick={reset} style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}cc)`,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer"}}>Try again! 🔁</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── MULTI-ROUTINE CARD (child view) ───────────────────
+function RoutineCard({data}){
+  const T=THEMES.find(t=>t.id===data.themeId)||THEMES[0];
+  const routines=data.routines||[];
+  const [activeIdx,setActiveIdx]=useState(0);
+  const rt=routines[activeIdx];
+
+  return(
+    <div style={{minHeight:"100vh",background:T.bg}}>
+      {/* Header */}
+      <div style={{background:T.header,paddingTop:20,borderBottom:`3px solid ${T.card}`}}>
+        <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><StarLogo size={32} accent={T.accent}/></div>
+        {data.cName&&<div style={{fontSize:32,fontWeight:900,color:T.accent,textAlign:"center",lineHeight:1,letterSpacing:-0.5,marginBottom:4,paddingHorizontal:16}}>{data.cName}</div>}
+        {/* Tabs */}
+        <div style={{display:"flex",overflowX:"auto",padding:"10px 12px 0",gap:6,justifyContent:routines.length<=3?"center":"flex-start"}}>
+          {routines.map((r,i)=>{
+            const rt2=ROUTINE_TYPES.find(x=>x.id===r.id)||{emoji:"⭐",label:r.rName};
+            const isActive=i===activeIdx;
+            return(
+              <button key={r.id} onClick={()=>setActiveIdx(i)} style={{
+                padding:"8px 14px",borderRadius:"14px 14px 0 0",border:"none",
+                background:isActive?"#fff":"rgba(255,255,255,0.4)",
+                color:isActive?T.accent:T.text,
+                fontWeight:isActive?800:600,fontSize:13,
+                cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
+                boxShadow:isActive?"0 -2px 8px rgba(0,0,0,0.06)":"none",
+                borderBottom:isActive?`3px solid ${T.accent}`:"3px solid transparent",
+                transition:"all 0.15s",
+              }}>
+                {rt2.emoji} {rt2.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {/* Active routine panel */}
+      {rt&&<RoutinePanel key={rt.id} routine={rt} T={T}/>}
+      {data.msg&&<div style={{textAlign:"center",padding:"4px 16px 20px",fontSize:13,fontWeight:600,color:T.text,opacity:0.6}}>💗 {data.msg} 💗</div>}
+    </div>
+  );
+}
+
+// ── MAIN APP ──────────────────────────────────────────
+function App(){
+  const [accessCode, setAccessCode]=useState(null);
+  const [testerName, setTesterName]=useState("");
+  const [usageCount, setUsageCount]=useState(0);
+  const [sharedData, setSharedData]=useState(null);
+
+  // builder state
+  const [view,          setView]         =useState("setup");
+  const [cName,         setCName]        =useState("");
+  const [themeId,       setThemeId]      =useState("pink");
+  const [msg,           setMsg]          =useState("");
+  const [selectedTypes, setSelectedTypes]=useState([]); // routine type ids to build
+  const [buildIdx,      setBuildIdx]     =useState(0);  // which routine we're currently building
+  const [builtRoutines, setBuiltRoutines]=useState([]); // completed {id,rName,tasks}
+  // picker state (for current routine being built)
+  const [sel,    setSel]  =useState([]);
+  const [cat,    setCat]  =useState("All");
+  const [srch,   setSrch] =useState("");
+  const [link,   setLink] =useState("");
+  const [copied, setCopied]=useState(false);
+
+  useEffect(()=>{
+    const h=window.location.hash.slice(1);
+    if(h){ const d=dec(h); if(d&&d.routines) setSharedData(d); }
+  },[]);
+
+  const T=THEMES.find(t=>t.id===themeId)||THEMES[0];
+  const isSel=id=>sel.some(s=>s.id===id);
+  const totalPts=sel.reduce((a,s)=>a+pts(s.m,s.ch),0);
+  const usesLeft=MAX_USES-usageCount;
+
+  const currentTypeId=selectedTypes[buildIdx];
+  const currentType=ROUTINE_TYPES.find(x=>x.id===currentTypeId);
+  const isWknd=currentType?.isWknd||false;
+  const filtered=ACTS.filter(a=>(isWknd||cat==="All"||a.c===cat)&&a.n.toLowerCase().includes(srch.toLowerCase()));
+  const isLastRoutine=buildIdx===selectedTypes.length-1;
+
+  const handleUnlock=(code,name,count)=>{setAccessCode(code);setTesterName(name);setUsageCount(count);};
+
+  const toggleType=id=>setSelectedTypes(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+  const toggleAct=act=>{
+    if(isSel(act.id)) setSel(p=>p.filter(s=>s.id!==act.id));
+    else setSel(p=>[...p,{id:act.id,e:act.e,n:act.n,m:act.m,ch:act.ch}]);
+  };
+  const updAct=(id,f,v)=>setSel(p=>p.map(s=>s.id===id?{...s,[f]:v}:s));
+
+  const saveCurrentAndAdvance=()=>{
+    const newRoutine={id:currentTypeId,rName:currentType.rName,tasks:sel};
+    const newBuilt=[...builtRoutines,newRoutine];
+    setBuiltRoutines(newBuilt);
+    if(isLastRoutine){
+      // generate final link
+      const newCount=usageCount+1;
+      saveUsage(accessCode,{count:newCount});
+      setUsageCount(newCount);
+      const data={cName,themeId,msg,routines:newBuilt};
+      const encoded=enc(data);
+      const base=window.location.href.split("#")[0].split("?")[0];
+      const l=`${base}#${encoded}`;
+      setLink(l);
+      window.history.replaceState(null,"",`#${encoded}`);
+      setView("share");
+    } else {
+      setBuildIdx(i=>i+1);
+      setSel([]); setCat("All"); setSrch("");
+    }
+  };
+
+  const startOver=()=>{
+    window.history.replaceState(null,"",window.location.pathname);
+    setSharedData(null);setView("setup");setCName("");setThemeId("pink");setMsg("");
+    setSelectedTypes([]);setBuildIdx(0);setBuiltRoutines([]);
+    setSel([]);setCat("All");setSrch("");setLink("");setCopied(false);
+  };
+
+  const copyLink=()=>{
+    const fb=()=>{const el=document.createElement("textarea");el.value=link;document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);};
+    if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>{}).catch(fb); else fb();
+    setCopied(true);setTimeout(()=>setCopied(false),2500);
+  };
+
+  // shared routine link — no gate needed
+  if(sharedData) return <RoutineCard data={sharedData}/>;
+  // code gate
+  if(!accessCode) return <CodeGate onUnlock={handleUnlock}/>;
+
+  const UsageBanner=()=>(
+    <div style={{background:usesLeft<=1?"#FFF0F5":"#F0FFF6",borderBottom:`1px solid ${usesLeft<=1?"#FFE4EF":"#CFFAE4"}`,padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <span style={{fontSize:12,fontWeight:700,color:usesLeft<=1?"#FF6B9D":"#2ECC87"}}>{usesLeft<=1?"⚠️":"✅"} Hi {testerName}! {usesLeft} build{usesLeft!==1?"s":""} left</span>
+      <span style={{fontSize:11,color:"#8A86AA",fontWeight:600}}>Beta</span>
+    </div>
+  );
+
+  // ── SETUP ──────────────────────────────────────────
+  if(view==="setup") return(
+    <div style={{minHeight:"100vh",background:T.bg,paddingBottom:40}}>
+      <UsageBanner/>
+      <div style={{background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,padding:"24px 20px 20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <StarLogo size={46} accent={T.accent}/>
+          <div>
+            <div style={{fontWeight:900,fontSize:22,color:"#fff",letterSpacing:-0.5}}>RoutineStars</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.85)",marginTop:2}}>Build routines {cName||"your child"} will love</div>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"20px 20px"}}>
+        <div style={{background:"#fff",borderRadius:18,padding:18,marginBottom:12,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+          <label style={{fontSize:11,fontWeight:700,color:T.text,textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:8}}>Child's Name ✨</label>
+          <input value={cName} onChange={e=>setCName(e.target.value)} placeholder="e.g. Emma"
+            style={{width:"100%",padding:"11px 14px",borderRadius:12,border:`1.5px solid ${T.card}`,fontSize:16,fontWeight:700,outline:"none",background:T.bg,color:"#1E1A3C"}}/>
+        </div>
+        <div style={{background:"#fff",borderRadius:18,padding:18,marginBottom:12,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+          <label style={{fontSize:11,fontWeight:700,color:T.text,textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:12}}>Colour Theme 🎨</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {THEMES.map(t=>(
+              <button key={t.id} onClick={()=>setThemeId(t.id)} style={{padding:"7px 14px",borderRadius:20,border:`2px solid ${themeId===t.id?t.accent:"#eee"}`,background:themeId===t.id?t.accent:"#fff",color:themeId===t.id?"#fff":"#333",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{background:"#fff",borderRadius:18,padding:18,marginBottom:20,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+          <label style={{fontSize:11,fontWeight:700,color:T.text,textTransform:"uppercase",letterSpacing:0.5,display:"block",marginBottom:8}}>Personal Message 💌 (optional)</label>
+          <input value={msg} onChange={e=>setMsg(e.target.value)} placeholder={`Made with love for ${cName||"you"} 💕`}
+            style={{width:"100%",padding:"11px 14px",borderRadius:12,border:`1.5px solid ${T.card}`,fontSize:14,outline:"none",background:T.bg,color:"#1E1A3C"}}/>
+        </div>
+        <button onClick={()=>{if(cName.trim())setView("selectRoutines");}} disabled={!cName.trim()}
+          style={{width:"100%",padding:"15px",borderRadius:50,border:"none",background:cName.trim()?`linear-gradient(135deg,${T.accent},${T.accent}bb)`:"#ddd",color:"#fff",fontSize:17,fontWeight:800,cursor:cName.trim()?"pointer":"default",boxShadow:cName.trim()?`0 6px 20px ${T.accent}55`:"none"}}>
+          Choose Routines →
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── SELECT ROUTINES ────────────────────────────────
+  if(view==="selectRoutines") return(
+    <div style={{minHeight:"100vh",background:T.bg,paddingBottom:40}}>
+      <UsageBanner/>
+      <div style={{background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,padding:"20px 20px 18px",color:"#fff"}}>
+        <button onClick={()=>setView("setup")} style={{background:"rgba(255,255,255,0.25)",border:"none",borderRadius:10,padding:"6px 14px",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:12}}>← Back</button>
+        <h2 style={{fontSize:20,fontWeight:900,margin:"0 0 4px"}}>Which routines for {cName}?</h2>
+        <p style={{fontSize:13,opacity:0.9,margin:0}}>Pick one or more — they all go in one link.</p>
+      </div>
+      <div style={{padding:"20px 20px"}}>
+        {ROUTINE_TYPES.map(rt=>{
+          const isChosen=selectedTypes.includes(rt.id);
+          return(
+            <div key={rt.id} onClick={()=>toggleType(rt.id)} style={{background:isChosen?`${T.accent}15`:"#fff",borderRadius:18,padding:"16px 18px",marginBottom:10,cursor:"pointer",border:`2px solid ${isChosen?T.accent:T.card}`,display:"flex",alignItems:"center",gap:14,transition:"all 0.15s",boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+              <div style={{fontSize:30,width:44,textAlign:"center",flexShrink:0}}>{rt.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:16,color:"#1E1A3C"}}>{rt.rName}</div>
+              </div>
+              <div style={{width:26,height:26,borderRadius:"50%",border:`2.5px solid ${isChosen?T.accent:T.card}`,background:isChosen?T.accent:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",fontWeight:900,transition:"all 0.15s",flexShrink:0}}>
+                {isChosen?"✓":""}
+              </div>
+            </div>
+          );
+        })}
+        {selectedTypes.length>0&&(
+          <div style={{background:T.bg,borderRadius:14,padding:"12px 16px",marginBottom:16,border:`1px solid ${T.card}`,textAlign:"center"}}>
+            <span style={{fontSize:13,fontWeight:700,color:T.text}}>
+              {selectedTypes.length} routine{selectedTypes.length>1?"s":""} selected — {selectedTypes.length} build counted
+            </span>
+          </div>
+        )}
+        <button onClick={()=>{if(selectedTypes.length>0){setBuildIdx(0);setBuiltRoutines([]);setSel([]);setCat("All");setSrch("");setView("pick");}}} disabled={selectedTypes.length===0}
+          style={{width:"100%",padding:"15px",borderRadius:50,border:"none",background:selectedTypes.length>0?`linear-gradient(135deg,${T.accent},${T.accent}bb)`:"#ddd",color:"#fff",fontSize:17,fontWeight:800,cursor:selectedTypes.length>0?"pointer":"default",boxShadow:selectedTypes.length>0?`0 6px 20px ${T.accent}55`:"none"}}>
+          {selectedTypes.length>0?`Build ${selectedTypes.length} Routine${selectedTypes.length>1?"s":""} →`:"Select at least one"}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── ACTIVITY PICKER ────────────────────────────────
+  if(view==="pick") return(
+    <div style={{minHeight:"100vh",background:T.bg,paddingBottom:100}}>
+      <UsageBanner/>
+      <div style={{background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,padding:"16px 20px 14px",color:"#fff",position:"sticky",top:0,zIndex:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <button onClick={()=>{if(buildIdx===0)setView("selectRoutines");else{setBuildIdx(i=>i-1);const prev=builtRoutines[buildIdx-1];setSel(prev.tasks);setBuiltRoutines(p=>p.slice(0,-1));}}} style={{background:"rgba(255,255,255,0.25)",border:"none",borderRadius:10,padding:"5px 12px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>← Back</button>
+          <div style={{fontSize:12,fontWeight:700,opacity:0.9}}>{buildIdx+1} of {selectedTypes.length}</div>
+        </div>
+        <div style={{fontWeight:900,fontSize:17,marginBottom:2}}>{currentType?.emoji} {currentType?.rName}</div>
+        <div style={{fontSize:12,opacity:0.85,marginBottom:10}}>for {cName} · {sel.length} selected</div>
+        {/* Progress dots */}
+        <div style={{display:"flex",gap:6,marginBottom:10}}>
+          {selectedTypes.map((tid,i)=>(
+            <div key={tid} style={{flex:1,height:4,borderRadius:4,background:i<buildIdx?"rgba(255,255,255,0.9)":i===buildIdx?"#fff":"rgba(255,255,255,0.3)"}}/>
+          ))}
+        </div>
+        <input value={srch} onChange={e=>setSrch(e.target.value)} placeholder="🔍 Search..."
+          style={{width:"100%",padding:"8px 14px",borderRadius:12,border:"none",fontSize:14,outline:"none",background:"rgba(255,255,255,0.9)",marginBottom:8}}/>
+        {!isWknd
+          ?<div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
+             {CATS.map(c=><button key={c} onClick={()=>setCat(c)} style={{padding:"4px 12px",borderRadius:20,border:"none",background:cat===c?"#fff":"rgba(255,255,255,0.25)",color:cat===c?T.accent:"#fff",fontWeight:700,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{c}</button>)}
+           </div>
+          :<div style={{background:"rgba(255,255,255,0.2)",borderRadius:10,padding:"5px 12px",fontSize:12,color:"#fff",fontWeight:700}}>🎉 Weekend — all activities shown</div>
+        }
+      </div>
+
+      <div style={{padding:"12px 14px 0"}}>
+        {filtered.map(act=>{
+          const s=sel.find(x=>x.id===act.id),m=s?.m??act.m,isCh=s?.ch??act.ch,p=pts(m,isCh);
+          return(
+            <div key={act.id} style={{background:"#fff",borderRadius:16,padding:"12px 14px",marginBottom:9,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:`2px solid ${isSel(act.id)?T.accent:"transparent"}`,transition:"all 0.15s"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div onClick={()=>toggleAct(act)} style={{width:42,height:42,borderRadius:12,background:isSel(act.id)?T.accent:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,cursor:"pointer",flexShrink:0,transition:"all 0.15s",color:isSel(act.id)?"#fff":"inherit",fontWeight:isSel(act.id)?900:400}}>
+                  {isSel(act.id)?"✓":act.e}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:14,color:"#1E1A3C"}}>{act.n}</div>
+                  {isCh&&<div style={{marginTop:3}}><span style={{fontSize:10,fontWeight:700,color:T.accent,background:T.card,borderRadius:6,padding:"1px 7px"}}>⭐ Challenge</span></div>}
+                </div>
+                {isSel(act.id)
+                  ?<div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5,flexShrink:0}}>
+                     <div style={{background:T.accent,color:"#fff",borderRadius:10,padding:"2px 9px",fontWeight:800,fontSize:12}}>+{p}</div>
+                     <div style={{display:"flex",alignItems:"center",gap:4}}>
+                       <button onClick={()=>updAct(act.id,"m",Math.max(1,m-5))} style={{width:24,height:24,borderRadius:"50%",border:`1px solid ${T.card}`,background:"#fff",cursor:"pointer",fontWeight:800,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                       <span style={{fontSize:11,fontWeight:700,color:T.text,minWidth:38,textAlign:"center"}}>{m}m</span>
+                       <button onClick={()=>updAct(act.id,"m",m+5)} style={{width:24,height:24,borderRadius:"50%",border:`1px solid ${T.card}`,background:"#fff",cursor:"pointer",fontWeight:800,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                     </div>
+                     <button onClick={()=>updAct(act.id,"ch",!isCh)} style={{fontSize:9,fontWeight:700,color:isCh?T.accent:"#aaa",background:"transparent",border:"none",cursor:"pointer",padding:0}}>{isCh?"★ Remove":"☆ Challenge"}</button>
+                   </div>
+                  :<button onClick={()=>toggleAct(act)} style={{background:T.bg,border:`1.5px solid ${T.card}`,borderRadius:10,padding:"6px 12px",color:T.text,fontWeight:700,fontSize:12,cursor:"pointer",flexShrink:0}}>+ Add</button>
+                }
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {sel.length>0&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#fff",borderTop:`1px solid ${T.card}`,padding:"12px 18px",display:"flex",alignItems:"center",gap:12}}>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:14,color:"#1E1A3C"}}>{sel.length} activities · {totalPts} pts</div>
+            <div style={{fontSize:11,color:"#8A86AA"}}>{isLastRoutine?"Last routine — ready to generate!":"Next: "+ROUTINE_TYPES.find(x=>x.id===selectedTypes[buildIdx+1])?.rName}</div>
+          </div>
+          <button onClick={saveCurrentAndAdvance} style={{background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",border:"none",borderRadius:50,padding:"12px 22px",fontWeight:800,fontSize:14,cursor:"pointer",boxShadow:`0 4px 16px ${T.accent}55`,whiteSpace:"nowrap"}}>
+            {isLastRoutine?"Generate ✨":"Next Routine →"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── SHARE ──────────────────────────────────────────
+  if(view==="share") return(
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 20px"}}>
+      <div style={{width:"100%",maxWidth:440}}>
+        <div style={{background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,borderRadius:24,padding:"28px 22px",textAlign:"center",color:"#fff",marginBottom:18,boxShadow:`0 8px 32px ${T.accent}44`}}>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:12}}><StarLogo size={48} accent="rgba(255,255,255,0.3)"/></div>
+          <h2 style={{margin:"0 0 6px",fontSize:24,fontWeight:900}}>{cName}'s routines are ready!</h2>
+          <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
+            {builtRoutines.map(r=>{
+              const rt=ROUTINE_TYPES.find(x=>x.id===r.id)||{emoji:"⭐"};
+              return <span key={r.id} style={{background:"rgba(255,255,255,0.2)",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>{rt.emoji} {rt.label}</span>;
+            })}
+          </div>
+          <p style={{margin:"10px 0 0",opacity:0.75,fontSize:12}}>{usesLeft} build{usesLeft!==1?"s":""} remaining · 1 link for everything</p>
+        </div>
+
+        <div style={{background:"#fff",borderRadius:20,padding:18,marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,0.07)"}}>
+          <div style={{fontWeight:800,color:"#1E1A3C",fontSize:14,marginBottom:5}}>🔗 {cName}'s personal link</div>
+          <p style={{color:"#8A86AA",fontSize:13,margin:"0 0 12px",lineHeight:1.5}}>All {builtRoutines.length} routine{builtRoutines.length>1?"s":""} in one link. Send it to your child — no app or account needed.</p>
+          <div style={{background:T.bg,borderRadius:12,padding:"9px 12px",marginBottom:12,fontSize:11,color:T.text,wordBreak:"break-all",fontFamily:"monospace",border:`1px solid ${T.card}`,lineHeight:1.6}}>
+            {link.length>70?link.slice(0,70)+"...":link}
+          </div>
+          <button onClick={copyLink} style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:copied?"linear-gradient(135deg,#2ECC87,#27AE60)":`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",transition:"background 0.3s"}}>
+            {copied?"✓ Copied!":"📋 Copy link"}
+          </button>
+        </div>
+
+        <div style={{display:"flex",gap:10,marginBottom:10}}>
+          <button onClick={()=>{ setBuildIdx(selectedTypes.length-1); const prev=builtRoutines[builtRoutines.length-1]; setSel(prev.tasks); setBuiltRoutines(p=>p.slice(0,-1)); setView("pick"); }} style={{flex:1,padding:"12px",borderRadius:50,border:`1.5px solid ${T.card}`,background:"#fff",color:T.text,fontSize:13,fontWeight:700,cursor:"pointer"}}>← Edit last</button>
+          <button onClick={()=>{ const d=dec(window.location.hash.slice(1)); if(d) setSharedData(d); }} style={{flex:2,padding:"12px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${T.accent},${T.accent}bb)`,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Preview →</button>
+        </div>
+        {usesLeft>0&&<button onClick={startOver} style={{width:"100%",padding:"11px",borderRadius:50,border:"none",background:"transparent",color:"#8A86AA",fontSize:13,cursor:"pointer"}}>+ Build another routine</button>}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
